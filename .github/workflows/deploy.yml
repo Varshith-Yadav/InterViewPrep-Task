@@ -1,0 +1,35 @@
+name: CI/CD Flask Docker to GCP
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Set up SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H 34.57.218.87 >> ~/.ssh/known_hosts
+
+    - name: Copy project to VM
+      run: |
+        scp -i ~/.ssh/id_rsa -r ./ varshithyadav587@34.57.218.87:/home/varshithyadav587/flaskapp
+
+    - name: Build and run Docker container on VM
+      run: |
+        ssh -i ~/.ssh/id_rsa varshithyadav587@34.57.218.87 << 'EOF'
+          cd flaskapp
+          docker build -t flask-app .
+          docker stop flask-container || true
+          docker rm flask-container || true
+          docker run -d -p 80:5000 --name flask-container flask-app
+        EOF
