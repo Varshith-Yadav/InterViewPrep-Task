@@ -6,30 +6,58 @@ on:
       - main
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up SSH
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H 34.57.218.87 >> ~/.ssh/known_hosts
+      - name: Build Docker image
+        run: docker build -t flask-app .
 
-    - name: Copy project to VM
-      run: |
-        scp -i ~/.ssh/id_rsa -r ./ varshithyadav587@34.57.218.87:/home/varshithyadav587/flaskapp
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Build and run Docker container on VM
-      run: |
-        ssh -i ~/.ssh/id_rsa varshithyadav587@34.57.218.87 << 'EOF'
-          cd flaskapp
-          docker build -t flask-app .
-          docker stop flask-container || true
-          docker rm flask-container || true
-          docker run -d -p 80:5000 --name flask-container flask-app
-        EOF
+      - name: Build Docker image for testing
+        run: docker build -t flask-app .
+
+      - name: Run container and test with curl
+        run: |
+          docker run -d -p 5000:5000 --name test-container flask-app
+          sleep 5  # wait for app to start
+          curl --fail http://localhost:5000 || (echo "App test failed" && exit 1)
+          docker stop test-container
+          docker rm test-container
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 34.57.218.87 >> ~/.ssh/known_hosts
+
+      - name: Copy files to VM
+        run: |
+          rsync -avz --exclude='.git*' --exclude='.github' \
+            -e "ssh -i ~/.ssh/id_rsa" ./ varshithyadav587@34.57.218.87:/home/varshithyadav587/flaskapp
+
+      - name: Deploy Docker container on VM
+        run: |
+          ssh -i ~/.ssh/id_rsa varshithyadav587@34.57.218.87 << 'EOF'
+            cd /home/varshithyadav587/flaskapp
+            docker build -t flask-app .
+            docker stop flask-container || true
+            docker rm flask-container || true
+            docker run -d -p 80:5000 --name flask-container flask-app
+          EOF
