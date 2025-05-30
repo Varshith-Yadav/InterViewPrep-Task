@@ -26,8 +26,8 @@ pipeline {
                 sh '''
                 rm -rf temp_package
                 mkdir temp_package
-                cp -r * temp_package/
-                scp -i $SSH_KEY -o StrictHostKeyChecking=no -r temp_package $REMOTE_USER@$REMOTE_HOST:$REMOTE_APP_DIR
+                cp -r Dockerfile Jenkinsfile app.py requirements.txt temp_package/
+                scp -i "$SSH_KEY" -o StrictHostKeyChecking=no -r temp_package "$REMOTE_USER@$REMOTE_HOST:$REMOTE_APP_DIR"
                 '''
             }
         }
@@ -35,7 +35,7 @@ pipeline {
         stage('Deploy on VM') {
             steps {
                 sh '''
-                ssh -i $SSH_KEY -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << EOF
+                ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$REMOTE_USER@$REMOTE_HOST" << 'EOF'
                 cd $REMOTE_APP_DIR/temp_package
                 docker stop flask-app || true
                 docker rm flask-app || true
