@@ -28,7 +28,7 @@ jobs:
       - name: Run container and test with curl
         run: |
           docker run -d -p 5000:5000 --name test-container flask-app
-          sleep 5  # wait for app to start
+          sleep 5  
           curl --fail http://localhost:5000 || (echo "App test failed" && exit 1)
           docker stop test-container
           docker rm test-container
