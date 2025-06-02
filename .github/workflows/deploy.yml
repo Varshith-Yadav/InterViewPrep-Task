@@ -46,6 +46,7 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" | base64 -d > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H 34.57.218.87 >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id_rsa varshithyadav587@34.57.218.87 "echo SSH connection successful"
 
       - name: Copy files to VM
         run: |
